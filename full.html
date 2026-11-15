@@ -1079,6 +1079,7 @@ function sillSpan(o1,c,dt,dir){ const L=c/2+50, K=c/2+30, e=15;
   if(dt==='C') return {land:[o1-L,o1+c+L], car:[o1-K,o1+c+K]};
   const sl=dt==='T3'? c*2/3+50 : L, sk=dt==='T3'? c*2/3+30 : K;
   return dir==='R'? {land:[o1-e,o1+c+sl], car:[o1-e,o1+c+sk]} : {land:[o1-sl,o1+c+e], car:[o1-sk,o1+c+e]}; }
+const backSet = I => I.en!=='180' && I.bk!=null && I.bk!=='' && +I.bk>=0;   // the user typed a back gap
 const backOf = I => I.en==='180'? P.front180-sillSave(I) : (I.bk!=null && I.bk!=='' && +I.bk>=0 ? +I.bk : P.back);   // back-wall gap: the user's value, default 50
 // Felesa counterweight position (read off ~50 Felesa drawings): the car rail axis sits behind the car middle by
 // 45 (door up to 800) / 100 (door 900+); 1000 kg cars ~25; 180° cars 125 (depth up to 1300) / 100. The car rail axis
@@ -1168,10 +1169,13 @@ function carDepth(I,L,mode,c){
   const extW=iw+P.extW, extD=id+P.extD;
   let front = frontMin(I,x);
   // depth: the back gap is what the user set (default 50). The car depth goes in 10 mm steps, so a remainder under 10
-  // goes to the front (Felesa drawings: back 50, front 240/220/210). A car smaller than the maximum leaves its spare depth at the back (Felesa: Sokolov back 150).
+  // goes to the front (Felesa drawings: back 50, front 240/220/210). A car smaller than the maximum leaves its spare depth at the back
+  // (Felesa: Sokolov back 150) - unless the user typed a back gap (Idan: then the back gap is exact and the spare goes to the front,
+  // up to the whole landing door + frame inside the shaft; only what is left beyond that stays at the back).
   const backT = backOf(I), front0 = front;
   let cy = I.D-front-extD;
   if(cy-backT>0 && cy-backT<10){ cy=backT; front=I.D-cy-extD; }
+  else if(cy>backT && backSet(I)){ const give=Math.min(cy-backT, Math.max(0,P.framePos.in-sillSave(I)-front)); cy-=give; front+=give; }
   return {x, iw, id, area, q, extW, extD, front, front0, backT, cy, fullD: cy===backT, wantC: I.SL + (I.W-I.SL-I.SR)/2,
     notes: [], railOff: 0, cwtList: null};
 }
@@ -1224,9 +1228,10 @@ function settingNotes(s,I,L){
   if(I.en!=='180'){ const set=I.bk!=null&&I.bk!=='';
     if(s.cy>s.backT) notes.push({t:`מרווח קיר אחורי ${s.cy} (${set?'הוגדר':'ברירת מחדל'} ${s.backT}) - הקבינה קצרה מהמקסימום, העודף נשאר מאחור`,c:''});
     else if(set) notes.push({t:`מרווח קיר אחורי ${s.backT}`,c:''});
-    if(front>s.front0) notes.push({t:`חזית ${front} - ${front-s.front0} מ"מ עודף מעיגול עומק התא ל-10 מ"מ`,c:''}); }
+    if(front>s.front0) notes.push({t: front-s.front0<10? `חזית ${front} - ${front-s.front0} מ"מ עודף מעיגול עומק התא ל-10 מ"מ`
+      : `חזית ${front} (${I.fp==='custom'?'נבחרה':'במקום'} ${s.front0}) - הקבינה קצרה מהמקסימום, ${front-s.front0} מ"מ עברו לחזית כדי לשמור מרווח אחורי ${s.backT}`,c:''}); }
   if(I.ns){ const w={car:'סף תא',land:'סף פיר',both:'סף תא וסף פיר'}[I.ns], sv=sillSave(I);
-    notes.push({t:`${w} צר ${P.narrowSill} במקום ${P.doorZone.landDoor} - חוסך ${sv} מ"מ בחזית`+(I.fp==='custom'?' (חזית מותאמת: המספר שנבחר)':''),c:''}); }
+    notes.push({t:`${w} צר ${P.narrowSill} במקום ${P.doorZone.landDoor} - חוסך ${sv} מ"מ בחזית`,c:''}); }
   if(I.en!=='180' && I.fp==='custom') notes.push({t:`מיקום משקופים מותאם - ${fpText(front,I)}`,c:front<P.frontOut?'warn':''});
   if(L==='NF' && I.mx==='custom'){ const k0=clr('NF',s.q); if(+I.gc>0&&+I.gc<k0.cwtX || +I.go>0&&+I.go<k0.othX) notes.push({t:`הוזנו חיזוקים ${I.gc??'-'} / ${I.go??'-'} - המינימום ${k0.cwtX} / ${k0.othX}, חושב לפי המינימום`,c:'warn'}); }
   if(L==='NF' && I.cg!=='std') notes.push({t:`מרווח קבינה-שאסי מצומצם ${railOf(I,clr('NF',s.q))} בכל צד (סטנדרט ${clr('NF',s.q).rail})`,c:'warn'});
