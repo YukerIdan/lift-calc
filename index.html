@@ -491,10 +491,14 @@ input.calc{background:var(--surface-2);color:var(--muted)}
 .undo-bar button{font-size:12.5px;padding:6px 12px}
 .chk{display:flex;align-items:center;gap:8px;font-size:14px}.chk input{width:auto}
 .conf-f b{font-size:14px;color:var(--ink)} .conf-f small{font-size:11.5px;color:var(--muted)}
-.fpt{display:grid;grid-template-columns:auto auto auto;justify-content:center;gap:2px 16px;margin-top:4px;font:500 12.5px/1.4 var(--f-body);color:var(--ink-2);white-space:normal}
-.fpt .h{grid-column:1/-1;font-weight:700;color:var(--ink);font-size:13.5px}
-.fpt i{font-style:normal;color:var(--muted);font-size:11.5px}
-.fpt span{font-family:var(--f-num);text-align:center}
+/* frame-position readout under the slider: a fixed 3-row table (front / on the landing / inside the shaft) - fixed widths, so it never jumps */
+.fpt{display:grid;grid-template-columns:11em 4em;justify-content:center;margin:6px auto 0;font:500 12.5px/1.5 var(--f-body);color:var(--ink-2);white-space:normal}
+.fpt>div{display:contents}
+.fpt i,.fpt span{padding:3px 8px;border-bottom:1px solid var(--line)}
+.fpt i{font-style:normal;color:var(--muted);text-align:right}
+.fpt span{font-family:var(--f-num);font-variant-numeric:tabular-nums;text-align:left;color:var(--ink)}
+.fpt .h i,.fpt .h span{font-weight:700;color:var(--ink);font-size:13px}
+.fpt>div:last-child i,.fpt>div:last-child span{border-bottom:0}
 .notes li{white-space:pre-line}
 .more.tune{margin-top:4px}
 </style>
@@ -797,7 +801,7 @@ function fpSplit(f,I){ const z=zoneOf(I), d0=z.carDoor, d1=d0+z.landDoor, f1=d1+
   const dIn=cl(f-d0,z.landDoor), fIn=cl(f-d1,P.frameD);
   return {dIn, dOut:z.landDoor-dIn, fIn, fOut:P.frameD-fIn, tIn:dIn+fIn, tOut:z.landDoor-dIn+P.frameD-fIn}; }
 function fpHtml(f,I){ const s=fpSplit(f,I);   // for the slider: the landing frame (sill included) - how much on the landing in total
-  return `<div class="h">חזית ${f}</div><i>משקוף על הפודסט</i><span>${s.tOut}</span><i>משקוף בתוך הפיר</i><span>${s.tIn}</span>`; }
+  return `<div class="h"><i>חזית</i><span>${f}</span></div><div><i>משקוף על הפודסט</i><span>${s.tOut}</span></div><div><i>משקוף בתוך הפיר</i><span>${s.tIn}</span></div>`; }
 function fpText(f,I){ const s=fpSplit(f,I);
   return `חזית ${f}, המשקוף (כולל הסף) בולט ${s.tOut} מ"מ על הפודסט`; }
 // sill lengths, measured on Felesa drawings (800/900 telescopic, 750 centre): the landing sill runs c/2+50 past the
