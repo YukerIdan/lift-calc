@@ -743,10 +743,6 @@ input.calc{background:var(--surface-2);color:var(--muted)}
       <label>מקיר אחורי לגב הקבינה<input id="BK" type="number" inputmode="numeric" step="5" placeholder="50"></label>
       <p class="hint">ברירת מחדל 50. מספר גדול יותר מקטין את עומק הקבינה. תא בגודל קבוע שקצר מהמקסימום משאיר את העודף מאחור - אז מוצג גם המרווח בפועל. במעבר 180° לא בשימוש.</p>
     </div></details>
-    <details class="opt" id="o-acc"><summary>נגישות (EN 81-70) <span class="val" data-for="acc"></span></summary><div>
-      <select id="ACC" aria-label="טיפוס נגישות"><option value="">לא נדרש</option><option value="1">טיפוס 1 - 1000×1300, 450 ק"ג, פתח 800 (בניין קיים)</option><option value="2">טיפוס 2 - 1100×1400, 630 ק"ג, פתח 900</option><option value="2e">טיפוס 2 בבניין קיים - פתח 800</option><option value="3">טיפוס 3 - 1100×2100, 1000 ק"ג, פתח 900</option></select>
-      <p class="hint">מידות פנים מינימליות לפי EN 81-70 טבלה 3. טיפוס 1 רק בבניין קיים כשאי אפשר טיפוס 2; טיפוס 2 הוא המינימום לבניין חדש. בטיפוסים 1-3 חובה מראה לאחור (יציאה ברוורס) ומאחז יד בצד לוח הלחצנים בגובה 900. חיפוי דקורטיבי יכול להקטין עד 15 מ"מ לכל קיר.</p>
-    </div></details>
     <details class="opt" id="o-rs"><summary>רוגזק <span class="val" data-for="rs"></span></summary><div>
       <label class="chk"><input type="checkbox" id="RS">לאפשר רוגזק</label>
       <p class="hint">ברירת המחדל: נורמל פריים בלבד. רוגזק רק כשאין נורמל פריים ובחרת בו כאן (או בכרטיס ההתנגשות). כניסה ב-90° תמיד רוגזק.</p>
@@ -894,13 +890,6 @@ function maxAreaFor(q){ for(let i=0;i<T6.length-1;i++){const[a,x]=T6[i],[b,y]=T6
 function loadFor(area){ return LOADS.find(q => maxAreaFor(q) >= area - 1e-9) ?? null; }
 function personsFor(q, area){ let p=Math.floor(q/75); while(p>1 && T8[Math.min(p,20)]>area+1e-9) p--; return p; }
 function modelFor(layout,q){ if(layout==='RS') return q<=630?'miniGRL':'GRL2'; return q<=630?'miniGRLp':q<=1000?'GRL2':'GRL4'; }
-// EN 81-70:2021+A1:2022 table 3 - minimum car (interior, mm), rated load and clear opening (5.2.1)
-const ACC={ '1':{w:1000,d:1300,q:450,door:800,n:'טיפוס 1',en:'Type 1',note:'רק בבניין קיים, כשאי אפשר טיפוס 2'},
-  '2':{w:1100,d:1400,q:630,door:900,n:'טיפוס 2',en:'Type 2',note:'המינימום לבניין חדש'},
-  '2e':{w:1100,d:1400,q:630,door:800,n:'טיפוס 2 (בניין קיים)',en:'Type 2 (existing building)',note:'בבניין קיים מותר פתח 800'},
-  '3':{w:1100,d:2100,q:1000,door:900,n:'טיפוס 3',en:'Type 3',note:'כיסא גלגלים כבד ונוסעים נוספים, מתאים לאלונקה'} };
-const accOk=(A,o)=>o.iw>=A.w && o.id>=A.d && o.q>=A.q && o.clear>=A.door;
-function access(iw,id,clear,q=9999){ for(const k of ['3','2','2e','1']) if(accOk(ACC[k],{iw,id,clear,q})) return 'נגיש '+ACC[k].n; return null; }
 const fl10 = v => Math.floor(v/10)*10;
 const dtName=d=>({T2:'טלסקופית 2',T3:'טלסקופית 3',C:'מרכזית'}[d]);
 const sideName=s=>s==='L'?'שמאל':'ימין';
@@ -909,7 +898,6 @@ const dirName=d=>d==='C'?'מרכזית':d==='R'?'נפתחת לימין':'נפת�
 /* ---------- solver ---------- */
 function solve(I){
   // accessibility: the door is a requirement - if the widest door without cutting is too narrow, take the required door even with cutting
-  if(ACC[I.acc] && !I.clear && !I._acc){ const r=solve({...I,_acc:1}); return r.list.length? r : solve({...I,_acc:1,clear:ACC[I.acc].door}); }
   let opts=[], diag=[];
   // the clearance mode is exactly what the menu says: ideal = 310/140, absolute = 280/110, custom = the entered values
   const modes = I.mx==='abs'? ['x'] : ['n'];
@@ -944,13 +932,10 @@ function solve(I){
     // standard DBG (6 / 8 persons): the standard car width, the given depth or as deep as the shaft and the load allow
     if(I.sd && L==='NF') for(const s of STD.filter(s=>DBG_STD[personsFor(s.q,s.w*s.d/1e6)])){ const e=carEnvelope(I,L,mode,s.q); if(!e||s.w>e.iw||(I.cw&&I.cw!==s.w)) continue;
       const id=I.cd||Math.min(e.id, fl10(maxAreaFor(s.q)*1e6/s.w)); if(id>=900 && id<=e.id) cands.push({iw:s.w,id,kind:'sdbg',std:s}); }
-    const A=ACC[I.acc];
-    if(A && !want){ const g=carEnvelope(I,L,mode,A.q); if(g && A.w<=g.iw && A.d<=g.id) cands.push({iw:A.w,id:g.id,kind:'max'},{iw:g.iw,id:g.id,kind:'max'}); }   // accessible: the minimum width at full depth, and the full envelope
     for(const c of cands){ const o=build(I,L,side,mode,c); if(o) opts.push(o); }
   }
   const m=new Map();
   if(I.sd) opts=opts.filter(o=>o.L!=='NF' || !o.dbgStd || o.dbgStd.ok);
-  if(ACC[I.acc]) opts=opts.filter(o=>accOk(ACC[I.acc],o));   // accessibility type: minimum car, load and door   // standard DBG kept: drop 6/8-person cars with another DBG before choosing per load
   for(const o of opts){ const k=[o.L,o.q,o.mode,o.isStd?o.stdName:'',o.iw,o.id].join('|'),p=m.get(k); if(!p||o.score>p.score) m.set(k,o); }
   const m2=new Map();
   const better=(o,p)=> o.fullD!==p.fullD && o.clear===p.clear ? o.fullD   // same load and door: keep the back gap as set, the spare width goes to the clearances
@@ -1012,20 +997,15 @@ function conflicts(I,opt={}){
     else fixes.push({t:`תא ${b.iw}×${b.id}`, why:`הגדול שנכנס (${b.persons} נוסעים)`, set:{cw:b.iw,cd:b.id}}); }
   if(!given.length || (!I.cw&&!I.cd&&!I.ps&&!I.sd)) given.unshift('תא מקסימלי');
   if(!I.rs && solve({...I,rs:true}).list.some(o=>o.L==='RS')) fixes.push({t:'לעבור לרוגזק', why:'רק אם אין ברירה - אפשרות משנית', set:{rs:true}});
-  if(ACC[I.acc]){ given.push('נגישות '+ACC[I.acc].n);
-    for(const k of ['3','2','2e','1'].filter(k=>k!==I.acc && ACC[k].w*ACC[k].d<=ACC[I.acc].w*ACC[I.acc].d && ACC[k].door<=ACC[I.acc].door))
-      if(nf({...I,acc:k})){ fixes.push({t:`נגישות ${ACC[k].n}`, why:ACC[k].note, set:{acc:k}}); break; }
-    if(nf({...I,acc:''})) fixes.push({t:'בלי דרישת נגישות', why:'לוותר על EN 81-70', set:{acc:''}}); }
   if(I.sd){ given.push('DBG סטנדרטי'); const J={...I,sd:false}; if(nf(J)) fixes.push({t:'לוותר על DBG סטנדרטי', why:'DBG לפי הקבינה', set:{sd:false}}); }
   // every constraint as a button: one click gives it up (or takes it to its limit); a tick marks the ones that solve it alone
   const rel=(t,set,why)=>({t,set,why,solves:!!set&&ok(set)}), fmin=opt.fpMin??FP_MIN, chips=[];
   if(I.cw||I.cd) chips.push(rel(`תא ${I.cw??'מקס'}×${I.cd??'מקס'}`,{cw:null,cd:null},'בלי מידת תא קבועה'));
-  else if(!I.ps && !I.sd && !ACC[I.acc]) chips.push(rel('תא מקסימלי',null));
+  else if(!I.ps && !I.sd) chips.push(rel('תא מקסימלי',null));
   if(I.ps) chips.push(rel(`${I.ps} נוסעים`,{ps:null},'בלי מספר נוסעים קבוע'));
   chips.push(rel(`חיזוקים ${gc} / ${go}`, gc>k.cwtX||go>k.othX? {mx:'custom',gc:k.cwtX,go:k.othX}:null, `למינימום ${k.cwtX} / ${k.othX}`));
   { const v=Math.max(0,bk-(dd??bk)); chips.push(rel(`מרווח אחורי ${bk}`, bk>0?{bk:v}:null, `ל-${v}`)); }
   { const v=Math.max(fmin,Math.floor((fr-(dd??fr))/10)*10); chips.push(rel(I.fp!=='std'?`חזית ${fr}`:`משקופים סטנדרטי (חזית ${fr})`, fr>fmin?{fp:'custom',fpv:v}:null, `חזית ${v} - משקופים יותר החוצה`)); }
-  if(ACC[I.acc]) chips.push(rel('נגישות '+ACC[I.acc].n,{acc:''},'בלי דרישת נגישות'));
   if(I.sd) chips.push(rel('DBG סטנדרטי',{sd:false},'DBG לפי הקבינה'));
   return {given, chips, atLimit:abs && !opt.lite, fixes, title:I.sd?'כדי לשמור DBG סטנדרטי - האילוצים מתנגשים':''};
 }
@@ -1397,7 +1377,7 @@ function buildResult(s,I,L,side,mode,c){
   return {L,side,mode,iw,id,extW:s.extW,extD:s.extD,area,q,persons,model:modelFor(L,q),dbgCar,dbgCwt,gapCwt:s.gapCwt,gapOth:s.gapOth,carL:s.carL,cy:s.cy,
     railOff:s.railOff,railY:s.railY,cwtTop:s.cwtTop,cwtBot:s.cwtBot,fullD:s.fullD,dbgStd,clear,dt,doorDir,o1,jl:s.jl,jr:s.jr,legL:s.legL,legR:s.legR,
     shGapL:s.shGapL,shGapR:s.shGapR,panL:s.panL,panR:s.panR,cuts:allCuts,frontCuts:s.cuts,rear:s.rear,sideDoor:s.sideDoor,ctrl:s.ctrl,notes,
-    isStd,stdName:stdObj?.name,acc:access(iw,id,clear,q),score,front:s.front,I};
+    isStd,stdName:stdObj?.name,score,front:s.front,I};
 }
 
 // standalone HTML (no Claude viewer): a regular browser download
@@ -1562,7 +1542,6 @@ function dataSheet(doc,R,project,he,T){
     row(T('Model / layout','דגם / סוג'), `${o.model} / ${o.L==='NF'?T('Normal frame','נורמל פריים'):T('Rucksack','רוגזק')}`);
     row(T('Load / persons','עומס / נוסעים'), T(`${o.q} kg / ${o.persons} persons`,`${o.q} ק"ג / ${o.persons} נוסעים`));
     row(T('Car internal W × D','תא פנים רוחב × עומק'), `${o.iw} × ${o.id}`+T(` mm - ${(o.iw*o.id/1e6).toFixed(2)} m²`,` מ"מ - ${(o.iw*o.id/1e6).toFixed(2)} מ"ר`));
-    if(ACC[I.acc]){ const A=ACC[I.acc]; row(T('Accessibility (EN 81-70)','נגישות (EN 81-70)'), T(`${A.en} - min. car ${A.w}×${A.d}, ${A.q} kg, door ${A.door}`,`${A.n} - תא מינימלי ${A.w}×${A.d}, ${A.q} ק"ג, פתח ${A.door}`)); }
     row(T('Door (clear opening)','דלת (פתח אור)'), `${o.clear} - ${dt[o.dt]}${o.dt!=='C'?', '+(o.doorDir==='R'?T('opens to the right','נפתחת לימין'):T('opens to the left','נפתחת לשמאל')):''}`);
     row(T('Car DBG / CWT DBG','DBG קבינה / משקולת'), `${o.dbgCar} / ${o.dbgCwt}`);
     row(T('Counterweight side','צד המשקולת'), o.side==='L'?T('Left','שמאל'):T('Right','ימין'));
@@ -2722,7 +2701,7 @@ function read(){
   return {W:v('W'),D:v('D'),SL:v('SL'),SR:v('SR'),stops:numOrNull('ST')||P.stops, fl0:numOrNull('FL0')||0, dt:r('dt'), dir:$('DIR').value, en:r('en'), ct:$('CT').value,
     sm:r('sm'), openL:v('OL'), pillar:v('PIL'), beam:v('BM')||100,
     s90:$('S90').value, RL:numOrNull('RL'), RR:numOrNull('RR'), SF:numOrNull('SF'), SB:numOrNull('SB'),
-    clear:+$('CL').value||null, ex:true, mx:r('mx'), gc:numOrNull('GC'), go:numOrNull('GO'), fp:r('fp'), fpv:+$('FPV').value, ns:r('ns'), cg:r('cg'), cgv:+$('CGV').value, bk:numOrNull('BK'), sd:$('SD').checked, rs:$('RS').checked, fs:+$('FS').value||0, acc:$('ACC').value, ps:+$('PS').value||null, cw:numOrNull('CW'), cd:numOrNull('CD'), sides:{L:sideReq('L'),R:sideReq('R')}};
+    clear:+$('CL').value||null, ex:true, mx:r('mx'), gc:numOrNull('GC'), go:numOrNull('GO'), fp:r('fp'), fpv:+$('FPV').value, ns:r('ns'), cg:r('cg'), cgv:+$('CGV').value, bk:numOrNull('BK'), sd:$('SD').checked, rs:$('RS').checked, fs:+$('FS').value||0, ps:+$('PS').value||null, cw:numOrNull('CW'), cd:numOrNull('CD'), sides:{L:sideReq('L'),R:sideReq('R')}};
 }
 function setVals(I){
   const set=(k,txt,on)=>{ const e=document.querySelector(`.val[data-for="${k}"]`); e.textContent=txt; e.classList.toggle('set',on); };
@@ -2735,7 +2714,7 @@ function setVals(I){
   set('ns', {'':'ללא',car:'סף תא',land:'סף פיר',both:'תא ופיר'}[I.ns||''], !!I.ns);
   set('cg', I.cg==='custom'?`${I.cgv}`:{std:'סטנדרטי',mid:'35',min:'מצומצם 25'}[I.cg], I.cg!=='std');
   $('mxCustom').hidden=I.mx!=='custom'; $('fpCustom').hidden=I.fp!=='custom'; $('cgCustom').hidden=I.cg!=='custom';
-  $('fpvOut').innerHTML=fpHtml(I.fpv,I); set('bk', I.bk!=null?`${I.bk}`:'50', I.bk!=null); set('sd', I.sd?'פעיל':'כבוי', I.sd); set('rs', I.rs?'מותר':'לא', I.rs); set('fs', I.fs?`${Math.abs(I.fs)} ${I.fs>0?'ימינה':'שמאלה'}`:'אוטומטי', !!I.fs); $('fsOut').textContent=I.fs?`${Math.abs(I.fs)} מ"מ ${I.fs>0?'ימינה':'שמאלה'}`:'במיקום האוטומטי'; set('acc', ACC[I.acc]?.n||'לא נדרש', !!ACC[I.acc]); $('cgvOut').textContent=`${I.cgv} מ"מ בכל צד`;
+  $('fpvOut').innerHTML=fpHtml(I.fpv,I); set('bk', I.bk!=null?`${I.bk}`:'50', I.bk!=null); set('sd', I.sd?'פעיל':'כבוי', I.sd); set('rs', I.rs?'מותר':'לא', I.rs); set('fs', I.fs?`${Math.abs(I.fs)} ${I.fs>0?'ימינה':'שמאלה'}`:'אוטומטי', !!I.fs); $('fsOut').textContent=I.fs?`${Math.abs(I.fs)} מ"מ ${I.fs>0?'ימינה':'שמאלה'}`:'במיקום האוטומטי'; $('cgvOut').textContent=`${I.cgv} מ"מ בכל צד`;
   set('cs', I.cw||I.cd?`${I.cw??'מקס'}×${I.cd??'מקס'}`:'מקסימלי', !!(I.cw||I.cd));
   const dup=I.sm==='duplex'; $('dupwrap').hidden=!dup; $('o-en').hidden=dup; $('o-ps').hidden=dup; $('o-cs').hidden=dup;
   for(const p of ['L','R']){ const k=$(p+'K').value; $(p+'PS').hidden=k!=='ps'; $(p+'SZ').hidden=k!=='size'; }
@@ -2753,7 +2732,6 @@ function pills(o){
   if(o.isStd) p.push(`<span class="pill p-std">${o.stdName}</span>`);
   if(o.mode==='x') p.push(`<span class="pill p-warn">מתחת למרווח האידיאלי</span>`);
   if(o.cuts.length||o.ctrl.cut) p.push(`<span class="pill p-cut">דורש ניסור</span>`);
-  if(o.acc) p.push(`<span class="pill p-mut">${o.acc}</span>`);
   return p.join('');
 }
 function render(){
@@ -2775,7 +2753,7 @@ function applyFix(set){   // full app: put a conflict fix into the form and reca
   const v=(id,x)=>{ $(id).value=x??''; }, r=(n,x)=>{ const e=document.querySelector(`input[name=${n}][value=${x}]`); if(e) e.checked=true; };
   for(const [k,x] of Object.entries(set)){
     if(k==='ps'&&x==null){ $('PS').value=''; continue; }
-    if(k==='mx'||k==='fp'||k==='cg'||k==='ns') r(k,x); else if(k==='sd') $('SD').checked=!!x; else if(k==='rs') $('RS').checked=!!x; else if(k==='acc') $('ACC').value=x; else v({gc:'GC',go:'GO',bk:'BK',fpv:'FPV',cw:'CW',cd:'CD',ps:'PS'}[k],x); }
+    if(k==='mx'||k==='fp'||k==='cg'||k==='ns') r(k,x); else if(k==='sd') $('SD').checked=!!x; else if(k==='rs') $('RS').checked=!!x; else v({gc:'GC',go:'GO',bk:'BK',fpv:'FPV',cw:'CW',cd:'CD',ps:'PS'}[k],x); }
   render(); histSync();
 }
 document.addEventListener('click',e=>{ const b=e.target.closest('[data-fix]'); if(b && $('out')?.contains(b)) applyFix(JSON.parse(b.dataset.fix)); });
@@ -2882,7 +2860,7 @@ function rulesHtml(){
     `דלת טלסקופית: הפתח צמוד לדופן הקבינה (${P.flush[0]}-${P.flush[1]} מ"מ) בצד שאליו היא לא נפתחת. רוחב קבינה חוץ ≥ פתח + ${P.carDoor.T2} (T2), + ${P.carDoor.T3} (T3), + ${P.carDoor.C} (מרכזית).`,
     `משקוף: ${P.jamb} סטנדרט, מינימום ${P.jambMin}. מרווח רצוי בין המשקוף לכתף: ${P.shGap} מכל צד (התראה אם פחות). פיקוד במשקוף: ${P.jambCtrl} בקומה העליונה.`,
     `הדמיה: גובה קומה ${P.floorH}, בור ${P.pit}, ראש פיר ${P.head} מהקומה העליונה לתקרה.`,
-    `עומס ונוסעים לפי EN 81-20 טבלאות 6 ו-8. נגישות לפי EN 81-70.`,
+    `עומס ונוסעים לפי EN 81-20 טבלאות 6 ו-8.`,
   ].map(t=>`<div>• ${t}</div>`).join('');
 }
 function tableHtml(){
